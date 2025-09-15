@@ -13,7 +13,7 @@ function App() {
   const fetchWorkflows = async () => {
     try {
       // Example: fetch from a specific repo
-      const response = await fetch('http://localhost:3001/api/repos/octocat/Hello-World/actions/runs');
+      const response = await fetch('/api/repos/octocat/Hello-World/actions/runs');
       if (!response.ok) {
         throw new Error('Failed to fetch workflows');
       }
