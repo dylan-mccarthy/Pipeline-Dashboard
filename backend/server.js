@@ -51,6 +51,45 @@ app.get('/api/repos/:owner/:repo/actions/runs', async (req, res) => {
   }
 });
 
+// Aggregate workflow runs for multiple repos
+// Example: GET /api/workflows?repos=owner1/repo1,owner2/repo2
+app.get('/api/workflows', async (req, res) => {
+  try {
+    const { repos } = req.query;
+    if (!repos) {
+      return res.status(400).json({ error: 'Missing repos query parameter' });
+    }
+
+    const repoList = repos.split(',').map((r) => r.trim()).filter(Boolean);
+
+    // Fetch runs for all repos in parallel
+    const fetchPromises = repoList.map(async (repoPair) => {
+      const [owner, repo] = repoPair.split('/');
+      if (!owner || !repo) {
+        return { repo: repoPair, error: 'Invalid repo format, expected owner/repo' };
+      }
+
+      try {
+        const { data } = await octokit.actions.listWorkflowRunsForRepo({
+          owner,
+          repo,
+          per_page: 10,
+        });
+        return { repo: `${owner}/${repo}`, runs: data.workflow_runs || [] };
+      } catch (err) {
+        console.error(`Error fetching runs for ${owner}/${repo}:`, err.message || err);
+        return { repo: `${owner}/${repo}`, error: err.message || 'Failed to fetch runs' };
+      }
+    });
+
+    const results = await Promise.all(fetchPromises);
+    res.json({ results });
+  } catch (error) {
+    console.error('Error aggregating workflow runs:', error);
+    res.status(500).json({ error: 'Failed to aggregate workflow runs' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
