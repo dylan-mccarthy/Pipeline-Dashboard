@@ -12,6 +12,9 @@
   "license": "ISC",
   "type": "commonjs",
   "description": "",
+  "engines": {
+    "node": ">=14"
+  },
   "dependencies": {
     "@octokit/rest": "^22.0.0",
     "cors": "^2.8.5",
