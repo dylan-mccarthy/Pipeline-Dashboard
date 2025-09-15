@@ -14,7 +14,9 @@ function App() {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetchWorkflows(controller.signal).catch((err) => {
+    // Build repos query for aggregated endpoint
+    const reposParam = encodeURIComponent(`${DEFAULT_OWNER}/${DEFAULT_REPO}`);
+    fetchAggregatedWorkflows(reposParam, controller.signal).catch((err) => {
       if (err.name !== 'AbortError') {
         console.error('Fetch error:', err);
       }
@@ -25,32 +27,29 @@ function App() {
     };
   }, []);
 
-  const fetchWorkflows = async (signal) => {
+  const fetchAggregatedWorkflows = async (reposParam, signal) => {
     try {
       setLoading(true);
       setError(null);
 
-      const url = `${API_BASE}/repos/${DEFAULT_OWNER}/${DEFAULT_REPO}/actions/runs`;
+      const url = `${API_BASE}/workflows?repos=${reposParam}`;
       const response = await fetch(url, { signal });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch workflows');
+        throw new Error('Failed to fetch aggregated workflows');
       }
 
       const data = await response.json();
 
-      // Only update state if not aborted
+      // data expected shape: { results: [ { repo: 'owner/repo', runs: [...] }, ... ] }
       if (!signal.aborted) {
-        setWorkflows(data.workflow_runs || []);
+        setWorkflows(data.results || []);
         setLoading(false);
       }
     } catch (err) {
       if (err.name === 'AbortError') {
-        // Request was cancelled, don't update state
-        return;
+        return; // request cancelled
       }
-
-      // Only update error state if not aborted
       if (!signal.aborted) {
         setError(err.message);
         setLoading(false);
@@ -65,12 +64,23 @@ function App() {
         {loading && <p>Loading workflows...</p>}
         {error && <p>Error: {error}</p>}
         <div className="workflows">
-          {workflows.map((run) => (
-            <div key={run.id} className="workflow-card">
-              <h3>{run.name}</h3>
-              <p>Status: {run.status}</p>
-              <p>Conclusion: {run.conclusion}</p>
-              <p>Created: {new Date(run.created_at).toLocaleString()}</p>
+          {workflows.map((repoResult) => (
+            <div key={repoResult.repo} className="repo-group">
+              <h2>{repoResult.repo}</h2>
+              {Array.isArray(repoResult.runs) && repoResult.runs.length > 0 ? (
+                repoResult.runs.map((run) => (
+                  <div key={run.id} className="workflow-card">
+                    <h3>{run.name}</h3>
+                    <p>Status: {run.status}</p>
+                    <p>Conclusion: {run.conclusion || 'N/A'}</p>
+                    <p>Created: {new Date(run.created_at).toLocaleString()}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="workflow-card empty">
+                  <p>No workflow runs found for this repository.</p>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -22,15 +22,17 @@ const mockWorkflowRuns = [
   }
 ];
 
-const mockApiResponse = {
-  workflow_runs: mockWorkflowRuns
+const mockAggregatedResponse = {
+  results: [
+    { repo: 'octocat/Hello-World', runs: mockWorkflowRuns },
+  ],
 };
 
 beforeEach(() => {
   mockFetch.mockClear();
   mockFetch.mockResolvedValue({
     ok: true,
-    json: () => Promise.resolve(mockApiResponse)
+    json: () => Promise.resolve(mockAggregatedResponse)
   });
 });
 
@@ -58,7 +60,7 @@ test('loads and displays workflows', async () => {
   expect(screen.getAllByText(/Conclusion:/)).toHaveLength(2);
 
   // Verify fetch was called with correct URL
-  expect(mockFetch).toHaveBeenCalledWith('/api/repos/octocat/Hello-World/actions/runs', {
+  expect(mockFetch).toHaveBeenCalledWith('/api/workflows?repos=octocat%2FHello-World', {
     signal: expect.any(AbortSignal)
   });
 });
