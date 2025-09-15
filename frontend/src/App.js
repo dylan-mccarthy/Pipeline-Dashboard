@@ -1,28 +1,60 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+// Configuration - can be moved to env variables or config file
+const API_BASE = process.env.REACT_APP_API_BASE || '/api';
+const DEFAULT_OWNER = process.env.REACT_APP_DEFAULT_OWNER || 'octocat';
+const DEFAULT_REPO = process.env.REACT_APP_DEFAULT_REPO || 'Hello-World';
+
 function App() {
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchWorkflows();
+    const controller = new AbortController();
+
+    fetchWorkflows(controller.signal).catch((err) => {
+      if (err.name !== 'AbortError') {
+        console.error('Fetch error:', err);
+      }
+    });
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
-  const fetchWorkflows = async () => {
+  const fetchWorkflows = async (signal) => {
     try {
-      // Example: fetch from a specific repo
-      const response = await fetch('/api/repos/octocat/Hello-World/actions/runs');
+      setLoading(true);
+      setError(null);
+
+      const url = `${API_BASE}/repos/${DEFAULT_OWNER}/${DEFAULT_REPO}/actions/runs`;
+      const response = await fetch(url, { signal });
+
       if (!response.ok) {
         throw new Error('Failed to fetch workflows');
       }
+
       const data = await response.json();
-      setWorkflows(data.workflow_runs || []);
+
+      // Only update state if not aborted
+      if (!signal.aborted) {
+        setWorkflows(data.workflow_runs || []);
+        setLoading(false);
+      }
     } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      if (err.name === 'AbortError') {
+        // Request was cancelled, don't update state
+        return;
+      }
+
+      // Only update error state if not aborted
+      if (!signal.aborted) {
+        setError(err.message);
+        setLoading(false);
+      }
     }
   };
 
