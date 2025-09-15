@@ -67,7 +67,11 @@ function App() {
           {workflows.map((repoResult) => (
             <div key={repoResult.repo} className="repo-group">
               <h2>{repoResult.repo}</h2>
-              {Array.isArray(repoResult.runs) && repoResult.runs.length > 0 ? (
+              {repoResult.error ? (
+                <div className="repo-error workflow-card">
+                  <p>Error: {repoResult.error}</p>
+                </div>
+              ) : Array.isArray(repoResult.runs) && repoResult.runs.length > 0 ? (
                 repoResult.runs.map((run) => (
                   <div key={run.id} className="workflow-card">
                     <h3>{run.name}</h3>
